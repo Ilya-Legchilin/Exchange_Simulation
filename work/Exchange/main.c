@@ -10,7 +10,8 @@ typedef enum {
 
 typedef enum {
     WAIT_FOR_SELL,
-    WAIT_FOR_BUY
+    WAIT_FOR_BUY,
+    NONE
 } State_TypeDef;
 
 
@@ -41,14 +42,24 @@ int max(int a, int b){
 int trade_counter = 0;
 Order_TypeDef ** storage;
 int storage_counter = 0;
+State_TypeDef state = NONE;
+
 
 void print_order(Order_TypeDef * order);
+void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order);
+void trade_show(int buy_id, int sell_id, int quantity, double price);
+void cancel(int order_id);
+void string_to_order(char * buffer, Order_TypeDef * order);
+void push(Order_TypeDef * order);
+void print_storage(void);
+void print_order(Order_TypeDef * order);
 
-void compare(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
+
+void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
     int minimum = min(buy_order->Qty, sell_order->Qty);
     if (buy_order->ID < sell_order->ID){
         printf("will be sold %d apples with the price %.2f\n", minimum, buy_order->Price);
-        trade(buy_order->ID, sell_order->ID, minimum, buy_order->Price);
+        trade_show(buy_order->ID, sell_order->ID, minimum, buy_order->Price);
         if (minimum == buy_order->Qty){
             cancel(buy_order->ID);
             buy_order = NULL;
@@ -61,7 +72,7 @@ void compare(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
     }
     else {
         printf("will be sold %d apples with the price %.2f\n", min(buy_order->Qty, sell_order->Qty), sell_order->Price);
-        trade(buy_order->ID, sell_order->ID, minimum, sell_order->Price);
+        trade_show(buy_order->ID, sell_order->ID, minimum, sell_order->Price);
         if (minimum == buy_order->Qty){
             cancel(buy_order->ID);
             buy_order = NULL;
@@ -75,7 +86,7 @@ void compare(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
 }
 
 
-void trade(int buy_id, int sell_id, int quantity, double price){
+void trade_show(int buy_id, int sell_id, int quantity, double price){
     trade_counter++;
     printf("T,%d,B,Apples,%d,%d,%.2f\n", trade_counter, min(buy_id, sell_id), max(buy_id, sell_id), price);
 }
@@ -126,7 +137,58 @@ void string_to_order(char * buffer, Order_TypeDef * order){
 void push(Order_TypeDef * order){
     storage_counter++;
     storage = (Order_TypeDef **)realloc(storage, storage_counter*sizeof(Order_TypeDef));
-    storage[storage_counter - 1] = order;
+    //storage[storage_counter - 1] = order;
+    if ((state == WAIT_FOR_BUY) && (order->side == S)){ // now a trade is about to happen
+        state = WAIT_FOR_SELL;
+        //trade(); //TODO
+
+
+    } else if ((state == WAIT_FOR_SELL) && (order->side == B)){
+        state = WAIT_FOR_BUY;
+        //trade(); //TODO
+
+    } else {
+        if (order->side == B && storage_counter != 1){
+            if (order->Price > storage[storage_counter - 2]->Price) {
+                storage[storage_counter - 1]->ID = storage[storage_counter - 2]->ID;
+                storage[storage_counter - 1]->Price = storage[storage_counter - 2]->Price;
+                storage[storage_counter - 1]->Qty = storage[storage_counter - 2]->Qty;
+                storage[storage_counter - 2] = order;
+            }
+            if (order->Price < storage[storage_counter - 2]->Price)
+                storage[storage_counter - 1] = order;
+            if (order->Price == storage[storage_counter - 2]->Price){
+                if (order->ID < storage[storage_counter - 2]->ID) {
+                    storage[storage_counter - 1]->ID = storage[storage_counter - 2]->ID;
+                    storage[storage_counter - 1]->Price = storage[storage_counter - 2]->Price;
+                    storage[storage_counter - 1]->Qty = storage[storage_counter - 2]->Qty;
+                    storage[storage_counter - 2] = order;
+                } else
+                    storage[storage_counter - 1] = order;
+            }
+        }
+        if (order->side == S && storage_counter != 1){
+                if (order->Price < storage[storage_counter - 2]->Price) {
+                    storage[storage_counter - 1]->ID = storage[storage_counter - 2]->ID;
+                    storage[storage_counter - 1]->Price = storage[storage_counter - 2]->Price;
+                    storage[storage_counter - 1]->Qty = storage[storage_counter - 2]->Qty;
+                    storage[storage_counter - 2] = order;
+                }
+                if (order->Price > storage[storage_counter - 2]->Price)
+                    storage[storage_counter - 1] = order;
+                if (order->Price == storage[storage_counter - 2]->Price){
+                    if (order->ID < storage[storage_counter - 2]->ID) {
+                        storage[storage_counter - 1]->ID = storage[storage_counter - 2]->ID;
+                        storage[storage_counter - 1]->Price = storage[storage_counter - 2]->Price;
+                        storage[storage_counter - 1]->Qty = storage[storage_counter - 2]->Qty;
+                        storage[storage_counter - 2] = order;
+                    } else
+                        storage[storage_counter - 1] = order;
+                }
+        }
+        if (storage_counter != 1)
+            storage[storage_counter - 1] = order;
+    }
 }
 
 
