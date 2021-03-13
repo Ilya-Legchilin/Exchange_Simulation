@@ -36,8 +36,13 @@ list *lst;
 int list_counter = 0;
 State_TypeDef state = NONE;
 
+
 void swap_orders(Order_TypeDef * a, Order_TypeDef * b);
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order);
+void deletelem(void);
+list * deletehead(void);
+FILE * fpinput;
+FILE * fpoutput;
 
 void init_list(Order_TypeDef a)  // а- значение первого узла
 {
@@ -60,8 +65,7 @@ void sort_for_sell(void)
     temp = (list*)malloc(sizeof(list));
     temp = lst;
     for (int i = 0; i < list_counter - 1; i++){
-        printf("Iteration %d\n", i);
-        if (temp->field.Price > temp->prev->field.Price)
+        if (temp->field.Price < temp->prev->field.Price)
             swap_orders(&(temp->field), &(temp->prev->field));
         else if (temp->field.Price == temp->prev->field.Price)
             if (temp->field.ID < temp->prev->field.ID)
@@ -78,8 +82,7 @@ void sort_for_buy(void)
     temp = (list*)malloc(sizeof(list));
     temp = lst;
     for (int i = 0; i < list_counter - 1; i++){
-        printf("Iteration %d\n", i);
-        if (temp->field.Price < temp->prev->field.Price)
+        if (temp->field.Price > temp->prev->field.Price)
             swap_orders(&(temp->field), &(temp->prev->field));
         else if (temp->field.Price == temp->prev->field.Price)
             if (temp->field.ID < temp->prev->field.ID)
@@ -90,7 +93,7 @@ void sort_for_buy(void)
 }
 
 
-void addelem_to_list(Order_TypeDef order)
+int addelem_to_list(Order_TypeDef order)
 {
   list_counter++;
   list *temp, *p;
@@ -104,17 +107,42 @@ void addelem_to_list(Order_TypeDef order)
     p->prev = temp;
   lst = temp;
   if ((state == WAIT_FOR_BUY) && (temp->field.side == S)){ // now a trade is about to happen
-        state = WAIT_FOR_SELL;
-        //trade(); //TODO
+        while (list_counter != 1){
+            list * root = lst;
+            while(root->prev != NULL)
+                root = root->prev;
+            trade(&(root->field), &(temp->field)) ;
+            if (temp->field.Qty == 0){
+                deletelem();
+                return 0;
+            }
+            if (root->field.Qty == 0)
+                lst = deletehead();
+        }
+        if (list_counter == 1)
+             state == WAIT_FOR_SELL;
   } else if ((state == WAIT_FOR_SELL) && (temp->field.side == B)){
-        state = WAIT_FOR_BUY;
-        //trade(); //TODO
+        while (list_counter != 1){
+            list * root = lst;
+            while(root->prev != NULL)
+                root = root->prev;
+            trade(&(root->field), &(temp->field)) ;
+            if (temp->field.Qty == 0){
+                deletelem();
+                return 0;
+            }
+            if (root->field.Qty == 0)
+                lst = deletehead();
+        }
+        if (list_counter == 1)
+             state == WAIT_FOR_BUY;
   } else {
         if (temp->field.side == B)
             sort_for_buy();
         else
             sort_for_sell();
   }
+  return 0;
 }
 
 void swap_orders(Order_TypeDef * a, Order_TypeDef * b){
@@ -135,48 +163,96 @@ void swap_orders(Order_TypeDef * a, Order_TypeDef * b){
 }
 
 
-list * deletelem(void)
+void deletelem(void)
 {
-  list *prev, *next;
-  prev = lst->prev; // узел, предшествующий lst
-  next = lst->next; // узел, следующий за lst
-  if (prev != NULL)
-    prev->next = lst->next; // переставляем указатель
-  if (next != NULL)
-    next->prev = lst->prev; // переставляем указатель
-  free(lst); // освобождаем память удаляемого элемента
-  return(prev);
+  list_counter--;
+  list * tail = lst;
+  while (tail->next != NULL)
+    tail = tail->next;
+  lst = tail->prev;
+  free(lst->next);
+  lst->next = NULL;
 }
 
 
 list * deletehead(void)
 {
+  list_counter--;
   list * root = lst;
   while (root->prev != NULL)
     root = root->prev;
   list *temp;
   temp = root->next;
-  temp->prev = NULL;
-  free(root);   // освобождение памяти текущего корня
+  if (list_counter != 0){
+      temp->prev = NULL;
+      free(root);   // освобождение памяти текущего корня
+  }
   return(temp); // новый корень списка
 }
+
+
+int delete_via_id(int id)
+{
+    list * root = lst;
+    if (lst->prev == NULL){
+        if (lst->field.ID == id){
+            lst = deletehead();
+            cancel(id);
+            return 0;
+        }
+        while (root->field.ID != id)
+            root = root->next;
+        if (root->next == NULL){
+            deletelem();
+            cancel(id);
+            return 0;
+        }
+    }
+    if (lst->next == NULL){
+        if (lst->field.ID == id){
+            deletelem();
+            cancel(id);
+            return 0;
+        }
+        while (root->field.ID != id && root->prev != NULL)
+            root = root->prev;
+        if (root->prev == NULL){
+            if (root->field.ID == id)
+                cancel(id);
+                lst = deletehead();
+            return 0;
+        }
+    }
+    root->next->prev = root->prev;
+    root->prev->next = root->next;
+    free(root);
+    list_counter--;
+    cancel(id);
+    return 0;
+}
+
 
 
 void listprintr(void)
 {
   list *p;
   p = lst;
-  while (p->prev != NULL)
-    p = p->prev;
-  while (p != NULL){
-    char c;
-    if (p->field.side == B)
-        c = 'B';
-    else
-        c = 'S';
-    printf("O,%d,%c,Apples,%d,%.2f\n", p->field.ID, c, p->field.Qty, p->field.Price);
-    p = p->next;
-  } // условие окончания обхода
+  //if (lst == NULL)
+  //  printf("LIST IS EMPTY\n");
+  //else {
+      while (p->prev != NULL){
+        p = p->prev;
+      }
+      while (p != NULL){
+        char c;
+        if (p->field.side == B)
+            c = 'B';
+        else
+            c = 'S';
+        //printf("O,%d,%c,Apples,%d,%.2f\n", p->field.ID, c, p->field.Qty, p->field.Price);
+        p = p->next;
+      } // условие окончания обхода
+  //}
 }
 
 
@@ -206,34 +282,34 @@ void print_order(Order_TypeDef * order);
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order);
 void trade_show(int buy_id, int sell_id, int quantity, double price);
 void cancel(int order_id);
-void string_to_order(char * buffer, Order_TypeDef * order);
+int string_to_order(char * buffer, Order_TypeDef * order);
 
 
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
     int minimum = min(buy_order->Qty, sell_order->Qty);
     if (buy_order->ID < sell_order->ID){
-        printf("will be sold %d apples with the price %.2f\n", minimum, buy_order->Price);
+        //printf("will be sold %d apples with the price %.2f\n", minimum, buy_order->Price);
         trade_show(buy_order->ID, sell_order->ID, minimum, buy_order->Price);
         if (minimum == buy_order->Qty){
-            cancel(buy_order->ID);
-            buy_order = NULL;
+            //cancel(buy_order->ID);
             sell_order->Qty = sell_order->Qty - minimum;
-        } else{
-            cancel(sell_order->ID);
-            sell_order = NULL;
             buy_order->Qty = buy_order->Qty - minimum;
+        } else{
+            //cancel(sell_order->ID);
+            buy_order->Qty = buy_order->Qty - minimum;
+            sell_order->Qty = sell_order->Qty - minimum;
         }
     }
     else {
-        printf("will be sold %d apples with the price %.2f\n", min(buy_order->Qty, sell_order->Qty), sell_order->Price);
+        //printf("will be sold %d apples with the price %.2f\n", min(buy_order->Qty, sell_order->Qty), sell_order->Price);
         trade_show(buy_order->ID, sell_order->ID, minimum, sell_order->Price);
         if (minimum == buy_order->Qty){
-            cancel(buy_order->ID);
-            buy_order = NULL;
+            //cancel(buy_order->ID);
             sell_order->Qty = sell_order->Qty - minimum;
+            buy_order->Qty = buy_order->Qty - minimum;
         } else{
-            cancel(sell_order->ID);
-            sell_order = NULL;
+            //cancel(sell_order->ID);
+            sell_order->Qty = sell_order->Qty - minimum;
             buy_order->Qty = buy_order->Qty - minimum;
         }
     }
@@ -242,23 +318,39 @@ void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
 
 void trade_show(int buy_id, int sell_id, int quantity, double price){
     trade_counter++;
-    printf("T,%d,B,Apples,%d,%d,%.2f\n", trade_counter, min(buy_id, sell_id), max(buy_id, sell_id), price);
+    char k;
+    //printf("buy_id = %d sell_id = %d\n", buy_id, sell_id);
+    if (buy_id < sell_id)
+        k = 'B';
+    else
+        k = 'S';
+    fprintf(fpoutput, "T,%d,%c,Apples,%d,%d,%d,%.2f\n", trade_counter, k, min(buy_id, sell_id), max(buy_id, sell_id), quantity, price);
+    printf("T,%d,%c,Apples,%d,%d,%d,%.2f\n", trade_counter, k, min(buy_id, sell_id), max(buy_id, sell_id), quantity, price);
 }
 
 
 void cancel(int order_id){
+    fprintf(fpoutput, "X,%d\n", order_id);
     printf("X,%d\n", order_id);
 }
 
 
-void string_to_order(char * buffer, Order_TypeDef * order){
+int string_to_order(char * buffer, Order_TypeDef * order){
     int i = 0;
     int id = 0;
+    if (buffer[0] == 'C'){
+        i = 2;
+        while (buffer[i] != '\0')   {
+            id = id*10 + buffer[i] - '0';
+            i++;
+        }
+        return id;
+    }
     Side_TypeDef side;
     int quantity = 0;
-    int counter_of_commas = 0;
     char price_buffer[32];
     double price = 0;
+    int counter_of_commas = 0;
     int j = 0;
     while (buffer[i] != '\0'){
         if (buffer[i] == ','){
@@ -284,48 +376,39 @@ void string_to_order(char * buffer, Order_TypeDef * order){
     order->Price = price;
     order->Qty = quantity;
     order->side = side;
-    // printf("from function id=%d side =%d quantity=%d price=%.2f\n", id, side, quantity, price);
+    return 0;
 }
 
 
 int main()
 {
-    char line[32];
+    fpinput = fopen("input.txt", "r");
+    fpoutput = fopen("output.txt", "w");
+    char line[64];
+    fscanf(fpinput, "%s", line);
     scanf("%s", line);
     Order_TypeDef * order = (Order_TypeDef *)malloc(sizeof(Order_TypeDef));
     string_to_order(line, order);
     init_list(*order);
     int i = 0;
-    while (1) {
-        scanf("%s", line);
+    int id = 0;
+    while (!feof(fpinput)) {
+        //printf("Here %d\n", i);
+        fscanf(fpinput, "%s", line);
+        //scanf("%s", line);
         Order_TypeDef * order = (Order_TypeDef *)malloc(sizeof(Order_TypeDef));
-        string_to_order(line, order);
-        char c;
-        if (order->side == B)
-            c = 'B';
+        id = string_to_order(line, order);
+        if (id == 0){
+            char c;
+            if (order->side == B)
+                c = 'B';
+            else
+                c = 'S';
+            addelem_to_list(*order);
+        }
         else
-            c = 'S';
-        // printf("O,%d,%c,Apples,%d,%.2f\n", order->ID, c, order->Qty, order->Price);
-        addelem_to_list(*order);
+            delete_via_id(id);
         i++;
-        printf("-----PRINT LIST-----\n");
-        listprintr();
-        printf("--------------------\n");
     }
     return 0;
 }
-
-/*
-O,10,B,4,267.58
-O,11,B,4,300.45
-O,12,B,4,100.23
-O,13,B,4,99.34
-O,16,B,4,400.66
-O,15,B,4,400.66
-O,18,B,4,99.34
-O,17,B,4,99.34
-O,20,B,4,500.67
-O,22,B,4,600.57
-O,21,B,4,600.57
-*/
-
