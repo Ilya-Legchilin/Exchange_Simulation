@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 
-
 typedef enum {
     B,
     S
@@ -26,9 +25,9 @@ typedef struct {
 
 typedef struct list
 {
-  Order_TypeDef field;  // ïîëå äàííûõ
-  struct list *next;    // óêàçàòåëü íà ñëåäóþùèé ýëåìåíò
-  struct list *prev;    // óêàçàòåëü íà ïðåäûäóùèé ýëåìåíò
+    Order_TypeDef field;  // Ð¿Ð¾Ð»Ðµ Ð´Ð°Ð½Ð½Ñ‹Ñ…
+    struct list *next;    // ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° ÑÐ»ÐµÐ´ÑƒÑŽÑ‰Ð¸Ð¹ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚
+    struct list *prev;    // ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° Ð¿Ñ€ÐµÐ´Ñ‹Ð´ÑƒÑ‰Ð¸Ð¹ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚
 } list;
 
 
@@ -39,38 +38,36 @@ State_TypeDef state = NONE;
 
 void swap_orders(Order_TypeDef * a, Order_TypeDef * b);
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order);
-void deletelem(void);
-list * deletehead(void);
+void deletetail(void);
+void deletehead(void);
 FILE * fpinput;
 FILE * fpoutput;
 
-void init_list(Order_TypeDef a)  // à- çíà÷åíèå ïåðâîãî óçëà
+void init_list(Order_TypeDef a)  // Ð°- Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ Ð¿ÐµÑ€Ð²Ð¾Ð³Ð¾ ÑƒÐ·Ð»Ð°
 {
-  // âûäåëåíèå ïàìÿòè ïîä êîðåíü ñïèñêà
-  lst = (list*)malloc(sizeof(list));
-  lst->field = a;
-  lst->next = NULL; // óêàçàòåëü íà ñëåäóþùèé óçåë
-  lst->prev = NULL; // óêàçàòåëü íà ïðåäûäóùèé óçåë
-  list_counter = 1;
-  if (lst->field.side == B)
-    state = WAIT_FOR_BUY;
-  else
-    state = WAIT_FOR_SELL;
+    // Ð²Ñ‹Ð´ÐµÐ»ÐµÐ½Ð¸Ðµ Ð¿Ð°Ð¼ÑÑ‚Ð¸ Ð¿Ð¾Ð´ ÐºÐ¾Ñ€ÐµÐ½ÑŒ ÑÐ¿Ð¸ÑÐºÐ°
+
+    lst->field = a;
+    lst->next = NULL; // ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° ÑÐ»ÐµÐ´ÑƒÑŽÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
+    lst->prev = NULL; // ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»ÑŒ Ð½Ð° Ð¿Ñ€ÐµÐ´Ñ‹Ð´ÑƒÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
+    list_counter = 1;
+    if (lst->field.side == B)
+        state = WAIT_FOR_BUY;
+    else
+        state = WAIT_FOR_SELL;
 }
 
 
 void sort_for_sell(void)
 {
     list *temp;
-    temp = (list*)malloc(sizeof(list));
     temp = lst;
-    for (int i = 0; i < list_counter - 1; i++){
+    for (int i = 0; i < list_counter - 1 && temp->prev != NULL; i++){
         if (temp->field.Price < temp->prev->field.Price)
             swap_orders(&(temp->field), &(temp->prev->field));
         else if (temp->field.Price == temp->prev->field.Price)
             if (temp->field.ID < temp->prev->field.ID)
                 swap_orders(&(temp->field), &(temp->prev->field));
-        if (i != list_counter - 1)
             temp = temp->prev;
     }
 }
@@ -78,16 +75,13 @@ void sort_for_sell(void)
 
 void sort_for_buy(void)
 {
-    list *temp;
-    temp = (list*)malloc(sizeof(list));
-    temp = lst;
-    for (int i = 0; i < list_counter - 1; i++){
+    list * temp = lst;
+    for (int i = 0; i < list_counter - 1; i++) {
         if (temp->field.Price > temp->prev->field.Price)
             swap_orders(&(temp->field), &(temp->prev->field));
         else if (temp->field.Price == temp->prev->field.Price)
             if (temp->field.ID < temp->prev->field.ID)
                 swap_orders(&(temp->field), &(temp->prev->field));
-        if (i != list_counter - 1)
             temp = temp->prev;
     }
 }
@@ -95,54 +89,63 @@ void sort_for_buy(void)
 
 int addelem_to_list(Order_TypeDef order)
 {
-  list_counter++;
-  list *temp, *p;
-  temp = (list*)malloc(sizeof(list));
-  p = lst->next;                            // ñîõðàíåíèå óêàçàòåëÿ íà ñëåäóþùèé óçåë
-  lst->next = temp;                         // ïðåäûäóùèé óçåë óêàçûâàåò íà ñîçäàâàåìûé
-  temp->field = order;                      // ñîõðàíåíèå ïîëÿ äàííûõ äîáàâëÿåìîãî óçëà
-  temp->next = p;                           // ñîçäàííûé óçåë óêàçûâàåò íà ñëåäóþùèé óçåë
-  temp->prev = lst;                         // ñîçäàííûé óçåë óêàçûâàåò íà ïðåäûäóùèé óçåë
-  if (p != NULL)
-    p->prev = temp;
-  lst = temp;
-  if ((state == WAIT_FOR_BUY) && (temp->field.side == S)){ // now a trade is about to happen
-        while (list_counter != 1){
-            list * root = lst;
-            while(root->prev != NULL)
-                root = root->prev;
-            trade(&(root->field), &(temp->field)) ;
-            if (temp->field.Qty == 0){
-                deletelem();
-                return 0;
-            }
-            if (root->field.Qty == 0)
-                lst = deletehead();
+    if (lst != NULL) {
+        list_counter++;
+        list *temp, *p;
+        temp = (list *) malloc(sizeof(list));
+        p = (list *) malloc(sizeof(list));
+        p = lst->next;                            // ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ ÑƒÐºÐ°Ð·Ð°Ñ‚ÐµÐ»Ñ Ð½Ð° ÑÐ»ÐµÐ´ÑƒÑŽÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
+        lst->next = temp;                         // Ð¿Ñ€ÐµÐ´Ñ‹Ð´ÑƒÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ» ÑƒÐºÐ°Ð·Ñ‹Ð²Ð°ÐµÑ‚ Ð½Ð° ÑÐ¾Ð·Ð´Ð°Ð²Ð°ÐµÐ¼Ñ‹Ð¹
+        temp->field = order;                      // ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ Ð¿Ð¾Ð»Ñ Ð´Ð°Ð½Ð½Ñ‹Ñ… Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼Ð¾Ð³Ð¾ ÑƒÐ·Ð»Ð°
+        temp->next = p;                           // ÑÐ¾Ð·Ð´Ð°Ð½Ð½Ñ‹Ð¹ ÑƒÐ·ÐµÐ» ÑƒÐºÐ°Ð·Ñ‹Ð²Ð°ÐµÑ‚ Ð½Ð° ÑÐ»ÐµÐ´ÑƒÑŽÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
+        temp->prev = lst;
+        int i = 0;                                // ÑÐ¾Ð·Ð´Ð°Ð½Ð½Ñ‹Ð¹ ÑƒÐ·ÐµÐ» ÑƒÐºÐ°Ð·Ñ‹Ð²Ð°ÐµÑ‚ Ð½Ð° Ð¿Ñ€ÐµÐ´Ñ‹Ð´ÑƒÑ‰Ð¸Ð¹ ÑƒÐ·ÐµÐ»
+        if (p != NULL) {
+            i++;
+            p->prev = temp;
         }
-        if (list_counter == 1)
-             state == WAIT_FOR_SELL;
-  } else if ((state == WAIT_FOR_SELL) && (temp->field.side == B)){
-        while (list_counter != 1){
-            list * root = lst;
-            while(root->prev != NULL)
-                root = root->prev;
-            trade(&(root->field), &(temp->field)) ;
-            if (temp->field.Qty == 0){
-                deletelem();
-                return 0;
+        lst = temp;
+        if ((state == WAIT_FOR_BUY) && (temp->field.side == S)) { // now a trade is about to happen
+            while (list_counter > 1) {
+                list *root = lst;
+                while (root->prev != NULL)
+                    root = root->prev;
+                trade(&(root->field), &(temp->field));
+                if (temp->field.Qty == 0) {
+                    deletetail();
+                    return 0;
+                }
+                if (root->field.Qty == 0)
+                    deletehead();
             }
-            if (root->field.Qty == 0)
-                lst = deletehead();
+            if (list_counter == 1)
+                state == WAIT_FOR_SELL;
+        } else if ((state == WAIT_FOR_SELL) && (temp->field.side == B)) {
+            while (list_counter > 1) {
+                //printf("list counter === %d\n", list_counter);
+
+                list * root = lst;
+                while (root->prev != NULL)
+                    root = root->prev;
+                trade(&(root->field), &(temp->field));
+                if (temp->field.Qty == 0) {
+                    deletetail();
+                    return 0;
+                }
+                if (root->field.Qty == 0)
+                    deletehead();
+            }
+            if (list_counter == 1)
+                state == WAIT_FOR_BUY;
+        } else {
+            if (temp->field.side == B)
+                sort_for_buy();
+            else
+                sort_for_sell();
         }
-        if (list_counter == 1)
-             state == WAIT_FOR_BUY;
-  } else {
-        if (temp->field.side == B)
-            sort_for_buy();
-        else
-            sort_for_sell();
-  }
-  return 0;
+    } else
+        init_list(order);
+    return 0;
 }
 
 void swap_orders(Order_TypeDef * a, Order_TypeDef * b){
@@ -163,98 +166,61 @@ void swap_orders(Order_TypeDef * a, Order_TypeDef * b){
 }
 
 
-void deletelem(void)
+void deletetail(void)
 {
-  list_counter--;
-  list * tail = lst;
-  while (tail->next != NULL)
-    tail = tail->next;
-  lst = tail->prev;
-  free(lst->next);
-  lst->next = NULL;
+    list_counter--;
+    list * tail = lst;
+    while (tail->next != NULL)
+        tail = tail->next;
+    lst = tail->prev;
+    free(lst->next);
+    lst->next = NULL;
 }
 
 
-list * deletehead(void)
+void deletehead(void)
 {
-  list_counter--;
-  list * root = lst;
-  while (root->prev != NULL)
-    root = root->prev;
-  list *temp;
-  temp = root->next;
-  if (list_counter != 0){
-      temp->prev = NULL;
-      free(root);   // îñâîáîæäåíèå ïàìÿòè òåêóùåãî êîðíÿ
-  }
-  return(temp); // íîâûé êîðåíü ñïèñêà
+    list_counter--;
+    list * root = lst;
+    while (root->prev != NULL)
+        root = root->prev;
+    list *temp;
+    temp = root->next;
+    if (list_counter != 0){
+        temp->prev = NULL;
+        free(root);   // Ð¾ÑÐ²Ð¾Ð±Ð¾Ð¶Ð´ÐµÐ½Ð¸Ðµ Ð¿Ð°Ð¼ÑÑ‚Ð¸ Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ ÐºÐ¾Ñ€Ð½Ñ
+    }
+    while (temp->next != NULL)
+        temp = temp->next;
+    lst = temp;
 }
 
 
 int delete_via_id(int id)
 {
-    list * root = lst;
-    if (lst->prev == NULL){
-        if (lst->field.ID == id){
-            lst = deletehead();
+    list * temp = lst;
+    while (temp->field.ID != id && temp->prev != NULL)
+        temp = temp->prev;
+    if (temp->field.ID == id) {
+        if (temp->next == NULL) {
+            deletetail();
             cancel(id);
             return 0;
         }
-        while (root->field.ID != id)
-            root = root->next;
-        if (root->next == NULL){
-            deletelem();
+        if (temp->prev == NULL) {
+            deletehead();
             cancel(id);
             return 0;
+        } else {
+            list_counter--;
+            temp->prev->next = temp->next;
+            temp->next->prev = temp->prev;
+            free(temp);
+            cancel(id);
         }
     }
-    if (lst->next == NULL){
-        if (lst->field.ID == id){
-            deletelem();
-            cancel(id);
-            return 0;
-        }
-        while (root->field.ID != id && root->prev != NULL)
-            root = root->prev;
-        if (root->prev == NULL){
-            if (root->field.ID == id)
-                cancel(id);
-                lst = deletehead();
-            return 0;
-        }
-    }
-    root->next->prev = root->prev;
-    root->prev->next = root->next;
-    free(root);
-    list_counter--;
-    cancel(id);
     return 0;
 }
-
-
-
-void listprintr(void)
-{
-  list *p;
-  p = lst;
-  //if (lst == NULL)
-  //  printf("LIST IS EMPTY\n");
-  //else {
-      while (p->prev != NULL){
-        p = p->prev;
-      }
-      while (p != NULL){
-        char c;
-        if (p->field.side == B)
-            c = 'B';
-        else
-            c = 'S';
-        //printf("O,%d,%c,Apples,%d,%.2f\n", p->field.ID, c, p->field.Qty, p->field.Price);
-        p = p->next;
-      } // óñëîâèå îêîí÷àíèÿ îáõîäà
-  //}
-}
-
 
 
 int min(int a, int b){
@@ -274,11 +240,8 @@ int max(int a, int b){
 
 
 int trade_counter = 0;
-Order_TypeDef ** storage;
-int storage_counter = 0;
 
 
-void print_order(Order_TypeDef * order);
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order);
 void trade_show(int buy_id, int sell_id, int quantity, double price);
 void cancel(int order_id);
@@ -286,40 +249,25 @@ int string_to_order(char * buffer, Order_TypeDef * order);
 
 
 void trade(Order_TypeDef * buy_order, Order_TypeDef * sell_order){
+    if (buy_order->side == S) {
+        Order_TypeDef * temp = buy_order;
+        buy_order = sell_order;
+        sell_order = temp;
+    }
     int minimum = min(buy_order->Qty, sell_order->Qty);
-    if (buy_order->ID < sell_order->ID){
-        //printf("will be sold %d apples with the price %.2f\n", minimum, buy_order->Price);
+    if (buy_order->ID < sell_order->ID)
         trade_show(buy_order->ID, sell_order->ID, minimum, buy_order->Price);
-        if (minimum == buy_order->Qty){
-            //cancel(buy_order->ID);
-            sell_order->Qty = sell_order->Qty - minimum;
-            buy_order->Qty = buy_order->Qty - minimum;
-        } else{
-            //cancel(sell_order->ID);
-            buy_order->Qty = buy_order->Qty - minimum;
-            sell_order->Qty = sell_order->Qty - minimum;
-        }
-    }
-    else {
-        //printf("will be sold %d apples with the price %.2f\n", min(buy_order->Qty, sell_order->Qty), sell_order->Price);
+    else
         trade_show(buy_order->ID, sell_order->ID, minimum, sell_order->Price);
-        if (minimum == buy_order->Qty){
-            //cancel(buy_order->ID);
-            sell_order->Qty = sell_order->Qty - minimum;
-            buy_order->Qty = buy_order->Qty - minimum;
-        } else{
-            //cancel(sell_order->ID);
-            sell_order->Qty = sell_order->Qty - minimum;
-            buy_order->Qty = buy_order->Qty - minimum;
-        }
-    }
+    sell_order->Qty = sell_order->Qty - minimum;
+    buy_order->Qty = buy_order->Qty - minimum;
 }
+
 
 
 void trade_show(int buy_id, int sell_id, int quantity, double price){
     trade_counter++;
     char k;
-    //printf("buy_id = %d sell_id = %d\n", buy_id, sell_id);
     if (buy_id < sell_id)
         k = 'B';
     else
@@ -366,7 +314,7 @@ int string_to_order(char * buffer, Order_TypeDef * order){
             else
                 side = S;
         if (counter_of_commas == 3)
-             quantity = quantity*10 + buffer[i] - '0';
+            quantity = quantity*10 + buffer[i] - '0';
         if (counter_of_commas == 4)
             price_buffer[j++] = buffer[i];
         i++;
@@ -380,13 +328,38 @@ int string_to_order(char * buffer, Order_TypeDef * order){
 }
 
 
+void listprintr(void)
+{
+    list *p;
+    p = lst;
+    if (lst == NULL)
+      printf("LIST IS EMPTY\n");
+    else {
+        while (p->prev != NULL) {
+            p = p->prev;
+        }
+        while (p != NULL) {
+            char c;
+            if (p->field.side == B)
+                c = 'B';
+            else
+                c = 'S';
+            fprintf(fpoutput,"O,%d,%c,%d,%.2f\n", p->field.ID, c, p->field.Qty, p->field.Price);
+            p = p->next;
+        }
+    }
+}
+
+
+
 int main()
 {
     fpinput = fopen("input.txt", "r");
     fpoutput = fopen("output.txt", "w");
+    lst = (list*)malloc(sizeof(list));
     char line[64];
     fscanf(fpinput, "%s", line);
-    scanf("%s", line);
+    //scanf("%s", line);
     Order_TypeDef * order = (Order_TypeDef *)malloc(sizeof(Order_TypeDef));
     string_to_order(line, order);
     init_list(*order);
@@ -396,7 +369,6 @@ int main()
         //printf("Here %d\n", i);
         fscanf(fpinput, "%s", line);
         //scanf("%s", line);
-        Order_TypeDef * order = (Order_TypeDef *)malloc(sizeof(Order_TypeDef));
         id = string_to_order(line, order);
         if (id == 0){
             char c;
@@ -409,6 +381,168 @@ int main()
         else
             delete_via_id(id);
         i++;
+        fprintf(fpoutput, "-----PRINT LIST-----\n");
+        listprintr();
+        fprintf(fpoutput, "--------------------\n");
     }
     return 0;
 }
+
+/*
+Ðž,1,B,10,250.12
+Ðž,2,B,5,250.12
+Ðž,3,B,5,250.12
+Ðž,4,B,15,250.6
+O,5,S,31,248.5
+Ðž,6,B,1,250.12
+Ðž,7,B,2,250.12
+Ðž,8,B,3,250.12
+Ðž,9,B,4,250.6
+O,10,S,5,248.5
+Ðž,11,B,6,250.12
+Ðž,12,B,7,250.12
+Ðž,13,B,8,250.12
+Ðž,14,B,9,250.6
+O,15,S,10,248.5
+Ðž,16,B,11,250.12
+Ðž,17,B,11,250.12
+Ðž,18,B,12,250.12
+Ðž,19,B,13,250.6
+O,20,S,14,248.5
+Ðž,21,B,10,250.12
+Ðž,22,B,5,250.12
+Ðž,23,B,5,250.12
+Ðž,24,B,15,250.6
+O,25,S,31,248.5
+Ðž,26,B,1,250.12
+Ðž,27,B,2,250.12
+Ðž,28,B,3,250.12
+Ðž,29,B,4,250.6
+O,30,S,5,248.5
+Ðž,31,B,6,250.12
+Ðž,32,B,7,250.12
+Ðž,33,B,8,250.12
+Ðž,34,B,9,250.6
+O,35,S,10,248.5
+Ðž,36,B,11,250.12
+Ðž,37,B,11,250.12
+Ðž,38,B,12,250.12
+Ðž,39,B,13,250.6
+O,40,S,14,248.5
+Ðž,41,B,10,250.12
+Ðž,42,B,5,250.12
+Ðž,43,B,5,250.12
+Ðž,44,B,15,250.6
+O,45,S,31,248.5
+Ðž,46,B,1,250.12
+Ðž,47,B,2,250.12
+Ðž,48,B,3,250.12
+Ðž,49,B,4,250.6
+O,50,S,5,248.5
+Ðž,51,B,6,250.12
+Ðž,52,B,7,250.12
+Ðž,53,B,8,250.12
+Ðž,54,B,9,250.6
+O,55,S,10,248.5
+Ðž,56,B,11,250.12
+Ðž,57,B,11,250.12
+Ðž,58,B,12,250.12
+Ðž,59,B,13,250.6
+O,60,S,14,248.5
+Ðž,61,B,10,250.12
+Ðž,62,B,5,250.12
+Ðž,63,B,5,250.12
+Ðž,64,B,15,250.6
+O,65,S,31,248.5
+Ðž,66,S,1000,250.12
+Ðž,67,S,2,250.12
+Ðž,68,S,4,250.6
+O,70,S,5,248.5
+Ðž,71,S,6,250.12
+Ðž,72,S,7,250.12
+Ðž,73,S,8,250.12
+Ðž,74,S,9,250.6
+O,75,S,10,248.5
+Ðž,76,S,11,250.12
+Ðž,77,S,12,250.12
+Ðž,79,B,13,250.6
+O,80,B,14,248.5
+Ðž,81,B,10,250.12
+Ðž,82,B,5,250.12
+Ðž,83,B,5,250.12
+Ðž,84,B,15,250.6
+O,85,S,31,248.5
+Ðž,86,B,1,250.12
+Ðž,87,B,2,250.12
+Ðž,88,B,3,250.12
+Ðž,89,B,4,250.6
+O,90,S,5,248.5
+Ðž,91,B,6,250.12
+Ðž,92,B,7,250.12
+Ðž,93,B,8,250.12
+Ðž,94,B,9,250.6
+O,95,S,10,248.5
+Ðž,96,B,11,250.12
+Ðž,97,B,11,250.12
+Ðž,98,B,12,250.12
+Ðž,99,B,13,250.6
+O,100,S,14,248.5
+Ðž,121,B,10,250.12
+Ðž,122,B,5,250.12
+Ðž,123,B,5,250.12
+Ðž,124,B,15,250.6
+O,125,S,31,248.5
+Ðž,126,B,1,250.12
+Ðž,127,B,2,250.12
+Ðž,128,B,3,250.12
+Ðž,129,B,4,250.6
+O,130,S,5,248.5
+Ðž,131,B,6,250.12
+Ðž,132,B,7,250.12
+Ðž,133,B,8,250.12
+Ðž,134,B,9,250.6
+O,135,S,10,248.5
+Ðž,136,B,11,250.12
+Ðž,137,B,11,250.12
+Ðž,138,B,12,250.12
+Ðž,139,B,13,250.6
+O,140,S,14,248.5
+Ðž,141,B,10,250.12
+Ðž,142,B,5,250.12
+Ðž,143,B,5,250.12
+Ðž,144,B,15,250.6
+O,145,S,31,248.5
+Ðž,146,B,1,250.12
+Ðž,147,B,2,250.12
+Ðž,148,B,3,250.12
+Ðž,149,B,4,250.6
+O,150,S,5,248.5
+Ðž,151,B,6,250.12
+Ðž,152,B,7,250.12
+Ðž,153,B,8,250.12
+Ðž,154,B,9,250.6
+O,155,S,10,248.5
+Ðž,156,B,11,250.12
+Ðž,157,B,11,250.12
+Ðž,158,B,12,250.12
+Ðž,159,B,13,250.6
+O,160,S,14,248.5
+Ðž,161,B,10,250.12
+Ðž,162,B,5,250.12
+Ðž,163,B,5,250.12
+Ðž,164,B,15,250.6
+O,165,S,31,248.5
+Ðž,166,S,1000,250.12
+Ðž,167,S,2,250.12
+Ðž,168,S,4,250.6
+O,170,S,5,248.5
+Ðž,171,S,6,250.12
+Ðž,172,S,7,250.12
+Ðž,173,S,8,250.12
+Ðž,174,S,9,250.6
+O,175,S,10,248.5
+Ðž,176,S,11,250.12
+Ðž,177,S,12,250.12
+Ðž,179,B,13,250.6
+O,180,B,14,248.5
+*/
